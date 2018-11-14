@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-config
+  namespace: kube-system
+  labels:
+    app: {{ .Chart.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+data:
+  filebeat.yml: |-
+    filebeat.config:
+      inputs:
+        path: ${path.config}/inputs.d/*.yml
+        reload.enabled: false
+      modules:
+        path: ${path.config}/modules.d/*.yml
+        reload.enabled: false
+    output.elasticsearch:
+      hosts: ["{{ .Values.global.elasticsearchUrl }}"]

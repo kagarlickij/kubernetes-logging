@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: {{ .Chart.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+    service: {{ include "elasticsearch.fullname" . }}
+  name: {{ include "elasticsearch.fullname" . }}
+spec:
+  serviceName: es
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      service: {{ include "elasticsearch.fullname" . }}
+  template:
+    metadata:
+      labels:
+        service: {{ include "elasticsearch.fullname" . }}
+    spec:
+      terminationGracePeriodSeconds: 300
+      initContainers:
+      # NOTE: This is to fix the permission on the volume. By default elasticsearch container is not run as non root user.
+      # https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html#_notes_for_production_use_and_defaults
+      - name: fix-the-volume-permission
+        image: busybox
+        command:
+        - sh
+        - -c
+        - chown -R 1000:1000 /usr/share/elasticsearch/data
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+      # NOTE: To increase the default vm.max_map_count to 262144
+      # https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html#docker-cli-run-prod-mode
+      - name: increase-the-vm-max-map-count
+        image: busybox
+        command:
+        - sysctl
+        - -w
+        - vm.max_map_count=262144
+        securityContext:
+          privileged: true
+      # To increase the ulimit
+      # https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html#_notes_for_production_use_and_defaults
+      - name: increase-the-ulimit
+        image: busybox
+        command:
+        - sh
+        - -c
+        - ulimit -n 65536
+        securityContext:
+          privileged: true
+      containers:
+      - name: {{ include "elasticsearch.fullname" . }}
+        image: "{{ .Values.image.repository }}:{{ .Values.global.image.tag }}"
+        imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+        ports:
+        - containerPort: 9200
+          name: http
+        - containerPort: 9300
+          name: tcp
+        resources:
+          requests:
+            memory: 1Gi
+          limits:
+            memory: 8Gi
+        env:
+          - name: cluster.name
+            value: {{ include "elasticsearch.fullname" . }}
+          - name: node.name
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      storageClassName: standard
+      resources:
+        requests:
+          storage: 50Gi

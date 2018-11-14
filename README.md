@@ -66,17 +66,28 @@ kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"templat
 helm version
 ```
 
-#### 5. Deploy ElasticSearch and Kibana to Kubernetes:
+#### 5. Deploy ElasticSearch, Kibana and Filebeat to Kubernetes:
+
+Deploy using custom charts:
+```
+helm install ./k8s-logs --name k8s-logs
+kubectl expose deployment k8s-logs-kibana --type=LoadBalancer --name=k8s-logs-kibana-exposed
+```
+
+Alternatively deploy using official charts:
 ```
 helm install stable/elasticsearch --name elasticsearch --set image.tag=6.4.2
 helm install stable/kibana --name kibana --set image.tag=6.4.2,env.ELASTICSEARCH_URL=http://elasticsearch-client.default.svc:9200
 kubectl expose deployment kibana --type=LoadBalancer --name=kibana-expose
+kubectl create -f filebeat-kubernetes.yaml
 ```
 
-#### 6. Check ElasticSearch and Kibana deployment:
+#### 6. Check ElasticSearch, Kibana and Filebeat deployment:
+This will work for custom charts deploy, for deploy from official charts use relevant selectors
 ```
-kubectl get pods --selector=app=elasticsearch
+kubectl get pods --selector=service=k8s-logs-elasticsearch
 kubectl get pods --selector=app=kibana
+kubectl get pods --namespace=kube-system --selector=app=filebeat
 kubectl get service kibana-expose
 kubectl run -i --tty --rm debug --image=radial/busyboxplus --restart=Never -- curl http://elasticsearch-client.default.svc:9200/
 ```
@@ -124,17 +135,7 @@ kubectl logs $APP_POD_NAME
 kubectl exec -i -t $APP_POD_NAME -- cat /app/app.log
 ```
 
-# Filebeat setup
-Filebeat for File logs is installed and configured in sample app sources
-
-To install and setup Filebeat for app's Console and k8s logs:
-```
-kubectl create -f filebeat-kubernetes.yaml
-```
-
-Check Filebeat deploy (it’s DaemonSet in Kubernetes-system namespace):
-```
-kubectl get pods --namespace=kube-system --selector=k8s-app=filebeat
-```
-
+# Check results
 Open Kibana UI, go to Discover, enter `filebeat-*` as a pattern and check logs from Kubernetes cluster, app Console and File output, it should look like http://prntscr.com/lcvfw9
+
+Please note that Filebeat for file logs is installed and configured in sample app sources

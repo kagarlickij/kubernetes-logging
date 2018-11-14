@@ -1,0 +1,2 @@
+image:
+  repository: "docker.elastic.co/beats/filebeat"

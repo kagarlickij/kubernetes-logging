@@ -1,0 +1,5 @@
+global:
+  elasticsearchUrl: "http://k8s-logs-elasticsearch.default.svc:9200"
+  image:
+    tag: "6.4.2"
+    pullPolicy: "IfNotPresent"

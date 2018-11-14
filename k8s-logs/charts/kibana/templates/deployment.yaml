@@ -1,0 +1,43 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: {{ .Chart.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+  name: {{ include "kibana.fullname" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+        release: {{ .Release.Name }}
+    spec:
+      serviceAccountName: default
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.global.image.tag }}"
+        imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+        env:
+        - name: "ELASTICSEARCH_URL"
+          value: "{{ .Values.global.elasticsearchUrl }}"
+        ports:
+        - containerPort: 5601
+          name: kibana
+          protocol: TCP
+        resources:
+          {}
+
+        volumeMounts:
+        - name: {{ .Chart.Name }}
+          mountPath: "/usr/share/kibana/config/kibana.yml"
+          subPath: kibana.yml
+      tolerations:
+        []
+
+      volumes:
+        - name: {{ .Chart.Name }}
+          configMap:
+            name: {{ include "kibana.fullname" . }}

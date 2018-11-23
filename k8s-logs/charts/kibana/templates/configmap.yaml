@@ -9,6 +9,6 @@ metadata:
   name: {{ include "kibana.fullname" . }}
 data:
   kibana.yml: |
-    elasticsearch.url: "{{ .Values.global.elasticsearchUrl }}"
+    elasticsearch.url: "http://{{ .Values.global.elasticsearch.host }}:{{ .Values.global.elasticsearch.port }}"
     server.host: "0"
     server.name: {{ .Chart.Name }}

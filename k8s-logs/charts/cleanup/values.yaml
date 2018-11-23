@@ -1,0 +1,6 @@
+image:
+  repo: appropriate/curl
+
+schedule: "0 23 * * *"
+range: "now-7d/d"
+excluded_app: "avid-iam"

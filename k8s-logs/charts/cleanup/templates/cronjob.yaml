@@ -1,0 +1,33 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ template "cleanup.fullname" . }}
+  labels:
+    app: {{ template "cleanup.name" . }}
+    chart: {{ template "cleanup.chart" . }}
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+spec:
+  schedule: "{{ .Values.schedule }}"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: {{ template "cleanup.name" . }}
+            image: "{{ .Values.image.repo }}"
+            imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+            command: ["/bin/sh"]
+            args: ["/etc/config/query_executor.sh"]
+            volumeMounts:
+            - name: config
+              mountPath: /etc/config
+          volumes:
+          - name: config
+            configMap:
+              name: {{ template "cleanup.fullname" . }}-config
+          restartPolicy: OnFailure

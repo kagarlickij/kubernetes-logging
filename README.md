@@ -139,3 +139,169 @@ kubectl exec -i -t $APP_POD_NAME -- cat /app/app.log
 Open Kibana UI, go to Discover, enter `filebeat-*` as a pattern and check logs from Kubernetes cluster, app Console and File output, it should look like http://prntscr.com/lcvfw9
 
 Please note that Filebeat for file logs is installed and configured in sample app sources
+
+# Cleanup (automatic)
+Filebeat is set to create new ElasticSearch index each day
+
+Each day records older than 7 days are deleted via query from all indices. The only exception is for IAM logs, they are not deleted via query and present until index is present
+
+[Curator](https://www.elastic.co/guide/en/elasticsearch/client/curator/current/about.html) is used to automatically delete indices older than 30 days
+
+Curator is executed as k8s [CronJob](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)
+
+Schedule for Curator execution and age of indices to delete can be changed in `k8s-logs/charts/curator/valuess.yaml`
+
+Since there's no official Docker image for Curator you can use [mine](https://hub.docker.com/r/kagarlickij/elasticsearch-curator/) or build your own with `curator/Dockerfile`
+
+# Data export/import to/from local file
+
+#### 1. Export mapping
+```
+kubectl run -i --rm --tty elasticsearch-dump-executor --overrides='
+{
+    "kind": "Pod",
+    "apiVersion": "v1",
+    "spec": {
+        "containers": [{
+            "name": "elasticsearch-dump-executor",
+            "image": "kagarlickij/elasticsearch-dump:latest",
+            "command": ["/usr/local/bin/elasticdump"],
+            "args": ["--input=http://k8s-logs-elasticsearch.default.svc:9200/filebeat-6.4.2-2018.11.21", "--output=/usr/share/elastic/dump/filebeat-20181121-mapping.json", "--type=mapping"],
+            "volumeMounts": [{
+              "mountPath": "/usr/share/elastic/dump",
+              "name": "elasticsearch-dump-storage"
+            }]
+        }],
+        "volumes": [{
+            "name": "elasticsearch-dump-storage",
+            "persistentVolumeClaim": {
+                "claimName": "elasticsearch-dump-storage-claim"
+            }
+        }]
+    }
+}
+' --image=kagarlickij/elasticsearch-dump:latest --restart=Never
+```
+
+#### 2. Export data
+```
+kubectl run -i --rm --tty elasticsearch-dump-executor --overrides='
+{
+    "kind": "Pod",
+    "apiVersion": "v1",
+    "spec": {
+        "containers": [{
+            "name": "elasticsearch-dump-executor",
+            "image": "kagarlickij/elasticsearch-dump:latest",
+            "command": ["/usr/local/bin/elasticdump"],
+            "args": ["--input=http://k8s-logs-elasticsearch.default.svc:9200/filebeat-6.4.2-2018.11.21", "--output=/usr/share/elastic/dump/filebeat-20181121-data.json", "--type=data"],
+            "volumeMounts": [{
+              "mountPath": "/usr/share/elastic/dump",
+              "name": "elasticsearch-dump-storage"
+            }]
+        }],
+        "volumes": [{
+            "name": "elasticsearch-dump-storage",
+            "persistentVolumeClaim": {
+                "claimName": "elasticsearch-dump-storage-claim"
+            }
+        }]
+    }
+}
+' --image=kagarlickij/elasticsearch-dump:latest --restart=Never
+```
+
+#### 3. Start temporary pod to copy data from
+```
+kubectl run -i --rm --tty elasticsearch-dump-reader --overrides='
+{
+    "kind": "Pod",
+    "apiVersion": "v1",
+    "spec": {
+        "containers": [{
+            "name": "elasticsearch-dump-reader",
+            "image": "kagarlickij/elasticsearch-dump:latest",
+            "command": ["/bin/bash"],
+            "args": ["-ecx", "while :; do printf '.'; sleep 5 ; done"],
+            "volumeMounts": [{
+              "mountPath": "/usr/share/elastic/dump",
+              "name": "elasticsearch-dump-storage"
+            }]
+        }],
+        "volumes": [{
+            "name": "elasticsearch-dump-storage",
+            "persistentVolumeClaim": {
+                "claimName": "elasticsearch-dump-storage-claim"
+            }
+        }]
+    }
+}
+' --image=kagarlickij/elasticsearch-dump:latest --restart=Never
+```
+
+#### 4. Copy exported files to local filesystem
+```
+kubectl cp elasticsearch-dump-reader:/usr/share/elastic/dump/filebeat-20181121-mapping.json ./filebeat-20181121-mapping.json
+kubectl cp elasticsearch-dump-reader:/usr/share/elastic/dump/filebeat-20181121-data.json ./filebeat-20181121-data.json
+```
+
+#### 5. Terminate temporary pod
+```
+kubectl delete pod elasticsearch-dump-reader
+```
+
+#### 6. Import mapping to new cluster
+```
+kubectl run -i --rm --tty elasticsearch-dump-executor --overrides='
+{
+    "kind": "Pod",
+    "apiVersion": "v1",
+    "spec": {
+        "containers": [{
+            "name": "elasticsearch-dump-executor",
+            "image": "kagarlickij/elasticsearch-dump:latest",
+            "command": ["/usr/local/bin/elasticdump"],
+            "args": ["--input=/usr/share/elastic/dump/filebeat-20181121-mapping.json", "--output=http://k8s-logs-elasticsearch.default.svc:9200/filebeat-6.4.2-2018.11.21", "--type=mapping"],
+            "volumeMounts": [{
+              "mountPath": "/usr/share/elastic/dump",
+              "name": "elasticsearch-dump-storage"
+            }]
+        }],
+        "volumes": [{
+            "name": "elasticsearch-dump-storage",
+            "persistentVolumeClaim": {
+                "claimName": "elasticsearch-dump-storage-claim"
+            }
+        }]
+    }
+}
+' --image=kagarlickij/elasticsearch-dump:latest --restart=Never
+```
+
+#### 7. Import data to new cluster
+```
+kubectl run -i --rm --tty elasticsearch-dump-executor --overrides='
+{
+    "kind": "Pod",
+    "apiVersion": "v1",
+    "spec": {
+        "containers": [{
+            "name": "elasticsearch-dump-executor",
+            "image": "kagarlickij/elasticsearch-dump:latest",
+            "command": ["/usr/local/bin/elasticdump"],
+            "args": ["--input=/usr/share/elastic/dump/filebeat-20181121-data.json", "--output=http://k8s-logs-elasticsearch.default.svc:9200/filebeat-6.4.2-2018.11.21", "--type=data"],
+            "volumeMounts": [{
+              "mountPath": "/usr/share/elastic/dump",
+              "name": "elasticsearch-dump-storage"
+            }]
+        }],
+        "volumes": [{
+            "name": "elasticsearch-dump-storage",
+            "persistentVolumeClaim": {
+                "claimName": "elasticsearch-dump-storage-claim"
+            }
+        }]
+    }
+}
+' --image=kagarlickij/elasticsearch-dump:latest --restart=Never
+```

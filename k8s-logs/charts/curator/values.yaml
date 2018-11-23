@@ -1,0 +1,8 @@
+image:
+  repo: kagarlickij/elasticsearch-curator
+  tag: latest
+
+unit: days
+unitCount: 30
+
+schedule: "0 12 * * *"

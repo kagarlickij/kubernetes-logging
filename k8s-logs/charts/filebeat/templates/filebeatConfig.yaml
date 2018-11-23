@@ -18,4 +18,4 @@ data:
         path: ${path.config}/modules.d/*.yml
         reload.enabled: false
     output.elasticsearch:
-      hosts: ["{{ .Values.global.elasticsearchUrl }}"]
+      hosts: ["{{ .Values.global.elasticsearch.host }}:{{ .Values.global.elasticsearch.port }}"]

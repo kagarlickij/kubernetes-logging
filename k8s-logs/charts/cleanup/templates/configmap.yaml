@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "cleanup.fullname" . }}-config
+  labels:
+    app: {{ template "cleanup.name" . }}
+    chart: {{ template "cleanup.chart" . }}
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+data:
+  query.json: |-
+    {
+        "query": {
+            "bool": {
+                "must_not": [
+                    {
+                        "match_phrase": {
+                            "kubernetes.labels.app": "{{ .Values.excluded_app }}"
+                        }
+                    },
+                    {
+                        "range": {
+                            "@timestamp": {
+                                "gt": "{{ .Values.range }}"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    }
+  query_executor.sh: |-
+    curl -X POST --header "Content-Type: application/json" "k8s-logs-elasticsearch.default.svc:9200/*/_delete_by_query" --data @/etc/config/query.json

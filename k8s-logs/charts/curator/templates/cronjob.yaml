@@ -1,0 +1,42 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ template "curator.fullname" . }}
+  labels:
+    app: {{ template "curator.name" . }}
+    chart: {{ template "curator.chart" . }}
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+spec:
+  schedule: "{{ .Values.schedule }}"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: {{ template "curator.name" . }}
+            image: "{{ .Values.image.repo }}:{{ .Values.image.tag }}"
+            imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+            args:
+            - /etc/config/action_file.yml
+            - --config
+            - /etc/config/config.yml
+            resources:
+              limits:
+                cpu: 200m
+                memory: 512Mi
+              requests:
+                cpu: 100m
+                memory: 256Mi
+            volumeMounts:
+            - name: config
+              mountPath: /etc/config
+          volumes:
+          - name: config
+            configMap:
+              name: k8s-logs-curator-config
+          restartPolicy: OnFailure

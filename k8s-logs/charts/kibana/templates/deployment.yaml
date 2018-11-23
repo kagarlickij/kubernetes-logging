@@ -20,9 +20,6 @@ spec:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.image.repository }}:{{ .Values.global.image.tag }}"
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
-        env:
-        - name: "ELASTICSEARCH_URL"
-          value: "{{ .Values.global.elasticsearchUrl }}"
         ports:
         - containerPort: 5601
           name: kibana

@@ -17,5 +17,5 @@ data:
       modules:
         path: ${path.config}/modules.d/*.yml
         reload.enabled: false
-    output.elasticsearch:
-      hosts: ["{{ .Values.global.elasticsearch.host }}:{{ .Values.global.elasticsearch.port }}"]
+    output.logstash:
+      hosts: ["{{ .Values.global.logstash.host }}:{{ .Values.global.logstash.port }}"]

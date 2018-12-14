@@ -3,4 +3,4 @@ image:
 
 schedule: "0 23 * * *"
 range: "now-7d/d"
-excluded_app: "avid-iam"
+excluded_app: "iam"

@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: {{ .Chart.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+  name: {{ include "logstash.fullname" . }}
+data:
+  logstash.conf: |-
+    input {
+        beats {
+            port => 5044
+        }
+    }
+
+    filter {
+        if [kubernetes][labels][app] == "sample-app-k8s-logs" {
+            grok {
+                match => [ "message", "%{TIMESTAMP_ISO8601:timestamp} \[%{LOGLEVEL:logLevel}] \[%{DATA:serviceName}] \[%{DATA:unknown}] \[%{DATA:logTag}] %{GREEDYDATA:log}" ]
+            }
+
+            date {
+                match => ["timestamp_string", "ISO8601"]
+            }
+
+            mutate {
+                remove_field => [message, timestamp_string]
+            }
+        }
+    }
+
+    output {
+      elasticsearch {
+        hosts => "http://{{ .Values.global.elasticsearch.host }}:{{ .Values.global.elasticsearch.port }}"
+      }
+    }
+  logstash.yml: |-
+    http.host: "0.0.0.0"
+    path.config: /usr/share/logstash/pipeline

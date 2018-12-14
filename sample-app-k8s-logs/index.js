@@ -9,7 +9,7 @@ const logger = createLogger({
     format.timestamp({
       format: 'YYYY-MM-DD HH:mm:ss'
     }),
-    format.printf(info => `${info.timestamp} ${'FILE'} ${info.level}: ${info.message}`)
+    format.printf(info => `${info.timestamp} ${'[INFO] [iam] [] [SERVICE] com.acs.service.RequestTask Receive service request with transaction Id [c5c35e52-a5e2-42b5-90fc-7fe9bc2abee9] to: iam:global:3:findComponent'}`)
   ),
   transports: [
     new transports.Console({
@@ -17,7 +17,7 @@ const logger = createLogger({
       format: format.combine(
         format.colorize(),
         format.printf(
-          info => ` ${info.timestamp} ${'CONSOLE'} ${info.level}: ${info.message}`
+          info => `${info.timestamp} ${'[INFO] [iam] [] [SERVICE] com.acs.service.RequestTask Receive service request with transaction Id [c5c35e52-a5e2-42b5-90fc-7fe9bc2abee9] to: iam:global:3:findComponent'}`
         )
       )
     }),

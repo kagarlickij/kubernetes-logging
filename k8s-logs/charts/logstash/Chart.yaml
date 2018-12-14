@@ -1,0 +1,8 @@
+apiVersion: v1
+appVersion: "1.0"
+description: Custom Logstash chart
+name: logstash
+version: 0.1.0
+icon: https://www.elastic.co/assets/blt86e4472872eed314/logo-elastic-logstash-lt.svg
+sources:
+- https://github.com/elastic/logstash
